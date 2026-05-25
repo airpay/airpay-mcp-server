@@ -1,0 +1,58 @@
+# Git
+.git/
+.gitignore
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Pre-built binaries (Docker builds from source)
+airpay-mcp-server
+airpay-mcp-server.exe
+*.exe
+
+# Documentation (not needed in image)
+*.md
+Plan/
+
+# Go test files
+*_test.go
+coverage.html
+coverage.txt
+coverage.out
+*.out
+
+# OS files
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code project config
+.claude/
+
+# Windows helper scripts
+*.ps1
+
+# Build output directories
+/bin/
+/dist/
+/out/
+
+# Logs
+*.log
+logs/
+
+# Docker files (already in build context, no need to recurse)
+docker/
+docker-compose.yml
