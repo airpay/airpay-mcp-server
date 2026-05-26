@@ -11,11 +11,11 @@ import (
 
 // VerifyOrderInput is the typed input for the verify-order tool.
 type VerifyOrderInput struct {
-	OrderID         string `json:"orderid" jsonschema:"description:Merchant generated order/transaction ID"`
-	APTransactionID string `json:"ap_transactionid,omitempty" jsonschema:"description:Airpay transaction ID (alternative to orderid)"`
-	RRN             string `json:"rrn,omitempty" jsonschema:"description:Retrieval Reference Number (alternative to orderid)"`
-	TerminalID      string `json:"terminal_id,omitempty" jsonschema:"description:POS terminal ID (for POS transactions)"`
-	TxnType         string `json:"txn_type,omitempty" jsonschema:"description:Transaction type e.g. pos"`
+	OrderID         string `json:"orderid,omitempty" jsonschema:"Merchant generated order/transaction ID (alphanumeric, max 30 chars)"`
+	APTransactionID string `json:"ap_transactionid,omitempty" jsonschema:"Airpay internal numeric transaction ID"`
+	RRN             string `json:"rrn,omitempty" jsonschema:"Retrieval Reference Number from the bank (up to 12 digits)"`
+	TerminalID      string `json:"terminal_id,omitempty" jsonschema:"POS terminal ID (exactly 8 numeric digits, POS transactions only)"`
+	TxnType         string `json:"txn_type,omitempty" jsonschema:"Transaction type e.g. pos"`
 }
 
 // HandleVerifyOrder verifies/confirms a payment order status.

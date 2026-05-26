@@ -24,6 +24,8 @@ import (
 var (
 	serverName    = "airpay-mcp-server"
 	serverVersion = "1.0.0"
+	commit        = "none"
+	buildDate     = "unknown"
 )
 
 func main() {
@@ -45,7 +47,7 @@ func main() {
 		}
 	}
 
-	log.Printf("Starting %s v%s (transport=%s)", serverName, serverVersion, cfg.Transport)
+	log.Printf("Starting %s v%s (commit=%s built=%s transport=%s)", serverName, serverVersion, commit, buildDate, cfg.Transport)
 
 	// Security layer
 	enc := security.NewAirpayEncryption(cfg.Username, cfg.Password)
@@ -123,14 +125,21 @@ All requests are pre-authenticated. Trust tool results — do not infer session 
 		cancel()
 	}()
 
-	if err := runMCPServer(ctx, mcpServer, cfg); err != nil {
+	authToken := os.Getenv("AIRPAY_MCP_AUTH_TOKEN")
+	if authToken != "" {
+		log.Println("[mcp] Bearer token authentication enabled")
+	} else {
+		log.Println("[mcp] WARNING: AIRPAY_MCP_AUTH_TOKEN not set — /mcp endpoint is unauthenticated")
+	}
+
+	if err := runMCPServer(ctx, mcpServer, cfg, authToken); err != nil {
 		log.Fatalf("[main] Server error: %v", err)
 	}
 
 	log.Println("[main] Shutdown complete")
 }
 
-func runMCPServer(ctx context.Context, mcpServer *mcpsdk.Server, cfg *server.Config) error {
+func runMCPServer(ctx context.Context, mcpServer *mcpsdk.Server, cfg *server.Config, authToken string) error {
 	switch cfg.Transport {
 	case "stdio":
 		log.Println("[mcp] Running over stdio")
@@ -144,15 +153,22 @@ func runMCPServer(ctx context.Context, mcpServer *mcpsdk.Server, cfg *server.Con
 			return mcpServer
 		}, nil)
 
+		var sseRoot http.Handler = http.HandlerFunc(sseHandler.ServeHTTP)
+		if authToken != "" {
+			sseRoot = bearerAuthMiddleware(authToken, sseRoot)
+		}
+
 		mux := http.NewServeMux()
 		mux.HandleFunc("/health", healthHandler(cfg.Transport))
-		mux.HandleFunc("/", sseHandler.ServeHTTP)
+		mux.Handle("/", sseRoot)
 
 		srv := &http.Server{
-			Addr:         addr,
-			Handler:      mux,
-			ReadTimeout:  15 * time.Second,
-			WriteTimeout: 30 * time.Second,
+			Addr:        addr,
+			Handler:     mux,
+			ReadTimeout: 15 * time.Second,
+			// WriteTimeout intentionally 0: SSE connections are long-lived streams;
+			// a non-zero value would forcibly close open event streams.
+			WriteTimeout: 0,
 			IdleTimeout:  60 * time.Second,
 		}
 		go func() {
@@ -176,10 +192,15 @@ func runMCPServer(ctx context.Context, mcpServer *mcpsdk.Server, cfg *server.Con
 			Stateless: true,
 		})
 
+		var mcpRoute http.Handler = http.HandlerFunc(mcpHandler.ServeHTTP)
+		if authToken != "" {
+			mcpRoute = bearerAuthMiddleware(authToken, mcpRoute)
+		}
+
 		mux := http.NewServeMux()
 		mux.HandleFunc("/health", healthHandler(cfg.Transport))
-		mux.HandleFunc("/mcp", mcpHandler.ServeHTTP)
-		mux.HandleFunc("/mcp/", mcpHandler.ServeHTTP)
+		mux.Handle("/mcp", mcpRoute)
+		mux.Handle("/mcp/", mcpRoute)
 
 		srv := &http.Server{
 			Addr:         addr,
@@ -202,6 +223,18 @@ func runMCPServer(ctx context.Context, mcpServer *mcpsdk.Server, cfg *server.Con
 	default:
 		return fmt.Errorf("unknown transport: %s (valid: stdio, sse, http)", cfg.Transport)
 	}
+}
+
+func bearerAuthMiddleware(token string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer "+token {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			fmt.Fprint(w, `{"error":"unauthorized"}`)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func healthHandler(transport string) http.HandlerFunc {
@@ -343,7 +376,7 @@ CRITICAL: This action is IRREVERSIBLE. Never proceed to Phase 2 without explicit
 					},
 				},
 			},
-		}, refunds.HandleInitiateRefund(apiClient, baseURL))
+		}, refunds.HandleInitiateRefund(apiClient, baseURL, cfg.Secret))
 		registered++
 	}
 
