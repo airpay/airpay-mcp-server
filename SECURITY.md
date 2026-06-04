@@ -10,7 +10,7 @@
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Email: **security@airpay.in**
+Email: **devsupport@airpay.co.in**
 
 Include:
 - Description of the vulnerability
