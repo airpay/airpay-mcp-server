@@ -150,6 +150,9 @@ All configuration via environment variables. See `.env.example` for the full tem
 | `READ_ONLY` | `false` | Restrict to read-only tools |
 | `LOG_FILE` | - | Log file path (empty = stderr) |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+| `QR_MASTER_KEY` | - | Any string — SHA-256 hashed to a 32-byte AES-256-GCM key used to encrypt QR preview tokens. When set, `airpay_generate_qr` returns a `view_qr_page` URL served at `/qr/{token}/preview` |
+| `MCP_SERVER_URL` | `http://localhost:{PORT}` | Base URL used to build QR preview links — override when running behind a reverse proxy or on a custom domain |
+| `QR_LINK_TTL` | `86400` | QR preview link validity in seconds (default 24 h) |
 
 ### Toolset Names
 
@@ -249,11 +252,6 @@ npx @modelcontextprotocol/inspector http://localhost:8888/mcp
 ## Security Architecture
 
 Multi-layered security — unique among payment gateway MCP implementations:
-
-### Encryption Key
-```
-MD5(username + "~:~" + password) → 32-byte hex key
-```
 
 ### Private Key
 ```

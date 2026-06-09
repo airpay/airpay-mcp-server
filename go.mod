@@ -7,6 +7,8 @@ require (
 	github.com/toon-format/toon-go v0.0.0-20251202084852-7ca0e27c4e8c
 )
 
+require github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+
 require (
 	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/joho/godotenv v1.5.1

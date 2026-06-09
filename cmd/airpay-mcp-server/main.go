@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/airpay/airpay-mcp-server/internal/client"
+	"github.com/airpay/airpay-mcp-server/internal/qrlink"
 	"github.com/airpay/airpay-mcp-server/internal/security"
 	"github.com/airpay/airpay-mcp-server/internal/server"
 	"github.com/airpay/airpay-mcp-server/internal/tools/payments"
@@ -58,6 +60,13 @@ func main() {
 	)
 
 	apiClient := client.NewAirpayClient(enc, tokenMgr, privateKey, cfg.MerchantID)
+
+	// Derive QR master key for preview links
+	var qrMasterKey []byte
+	if cfg.QRMasterKeyRaw != "" {
+		k := sha256.Sum256([]byte(cfg.QRMasterKeyRaw))
+		qrMasterKey = k[:]
+	}
 
 	mcpServer := mcpsdk.NewServer(
 		&mcpsdk.Implementation{
@@ -132,14 +141,14 @@ All requests are pre-authenticated. Trust tool results — do not infer session 
 		log.Println("[mcp] WARNING: AIRPAY_MCP_AUTH_TOKEN not set — /mcp endpoint is unauthenticated")
 	}
 
-	if err := runMCPServer(ctx, mcpServer, cfg, authToken); err != nil {
+	if err := runMCPServer(ctx, mcpServer, cfg, authToken, qrMasterKey); err != nil {
 		log.Fatalf("[main] Server error: %v", err)
 	}
 
 	log.Println("[main] Shutdown complete")
 }
 
-func runMCPServer(ctx context.Context, mcpServer *mcpsdk.Server, cfg *server.Config, authToken string) error {
+func runMCPServer(ctx context.Context, mcpServer *mcpsdk.Server, cfg *server.Config, authToken string, qrMasterKey []byte) error {
 	switch cfg.Transport {
 	case "stdio":
 		log.Println("[mcp] Running over stdio")
@@ -159,6 +168,11 @@ func runMCPServer(ctx context.Context, mcpServer *mcpsdk.Server, cfg *server.Con
 		}
 
 		mux := http.NewServeMux()
+		if len(qrMasterKey) == 32 {
+			qrHandler := qrlink.NewHandler(qrMasterKey, log.Default())
+			mux.HandleFunc("/qr/", qrHandler.ServeHTTP)
+		}
+		mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("assets"))))
 		mux.HandleFunc("/health", healthHandler(cfg.Transport))
 		mux.Handle("/", sseRoot)
 
@@ -198,6 +212,11 @@ func runMCPServer(ctx context.Context, mcpServer *mcpsdk.Server, cfg *server.Con
 		}
 
 		mux := http.NewServeMux()
+		if len(qrMasterKey) == 32 {
+			qrHandler := qrlink.NewHandler(qrMasterKey, log.Default())
+			mux.HandleFunc("/qr/", qrHandler.ServeHTTP)
+		}
+		mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("assets"))))
 		mux.HandleFunc("/health", healthHandler(cfg.Transport))
 		mux.Handle("/mcp", mcpRoute)
 		mux.Handle("/mcp/", mcpRoute)
@@ -425,7 +444,7 @@ Common errors:
 ALWAYS display the returned QR code image and payment link to the user.
 After payment, poll airpay_verify_order with ap_transactionid to confirm status.`,
 				Annotations: wr,
-			}, qr_upi.HandleGenerateQR(apiClient, baseURL, cfg.PaymentDomain))
+			}, qr_upi.HandleGenerateQR(apiClient, baseURL, cfg.PaymentDomain, cfg.QRMasterKeyRaw, cfg.MCPServerURL, cfg.QRLinkTTL))
 			registered++
 		}
 	}

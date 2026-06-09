@@ -111,7 +111,7 @@ func TestHandleGenerateQR_MissingRequiredFields_ReturnsError(t *testing.T) {
 	apiClient, baseURL, cleanup := testhelper.NewTestClientWithServer(t, nil)
 	defer cleanup()
 
-	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com")
+	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com", "", "", 86400)
 
 	cases := []struct {
 		name  string
@@ -145,7 +145,7 @@ func TestHandleGenerateQR_AllRequiredFields_Success(t *testing.T) {
 	})
 	defer cleanup()
 
-	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com")
+	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com", "", "", 86400)
 	result, _, err := handler(context.Background(), &mcpsdk.CallToolRequest{}, GenerateQRInput{
 		OrderID:    "ORD123",
 		Amount:     "250.00",
@@ -166,7 +166,7 @@ func TestHandleGenerateQR_DefaultConsentIsY(t *testing.T) {
 	})
 	defer cleanup()
 
-	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com")
+	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com", "", "", 86400)
 	// No customer_consent provided — should default to "Y"
 	result, _, err := handler(context.Background(), &mcpsdk.CallToolRequest{}, GenerateQRInput{
 		OrderID:    "ORD1",
@@ -188,7 +188,7 @@ func TestHandleGenerateQR_ExplicitConsentN(t *testing.T) {
 	})
 	defer cleanup()
 
-	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com")
+	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com", "", "", 86400)
 	result, _, err := handler(context.Background(), &mcpsdk.CallToolRequest{}, GenerateQRInput{
 		OrderID:         "ORD2",
 		Amount:          "10.00",
@@ -212,7 +212,7 @@ func TestHandleGenerateQR_HitsCorrectEndpoint(t *testing.T) {
 	})
 	defer cleanup()
 
-	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com")
+	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com", "", "", 86400)
 	handler(context.Background(), &mcpsdk.CallToolRequest{}, GenerateQRInput{
 		OrderID:    "ORD1",
 		Amount:     "10.00",
@@ -233,7 +233,7 @@ func TestHandleGenerateQR_OptionalFields_DoNotBreak(t *testing.T) {
 	})
 	defer cleanup()
 
-	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com")
+	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com", "", "", 86400)
 	result, _, err := handler(context.Background(), &mcpsdk.CallToolRequest{}, GenerateQRInput{
 		OrderID:    "ORD3",
 		Amount:     "10.00",
@@ -254,7 +254,7 @@ func TestHandleGenerateQR_APIError_ReturnsErrorResult(t *testing.T) {
 	})
 	defer cleanup()
 
-	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com")
+	handler := HandleGenerateQR(apiClient, baseURL, "https://merchant.example.com", "", "", 86400)
 	result, _, err := handler(context.Background(), &mcpsdk.CallToolRequest{}, GenerateQRInput{
 		OrderID:    "ORD1",
 		Amount:     "10.00",

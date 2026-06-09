@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -31,6 +32,11 @@ type Config struct {
 	PaymentBaseURL string
 	PayoutBaseURL  string
 	OffersBaseURL  string
+
+	// QR Preview (optional — auto-derived from Secret if not set)
+	QRMasterKeyRaw string
+	MCPServerURL   string
+	QRLinkTTL      int
 }
 
 // LoadConfig loads configuration from environment variables.
@@ -47,8 +53,11 @@ func LoadConfig() (*Config, error) {
 		LogFile:      getEnv("LOG_FILE", ""),
 		LogLevel:     getEnv("LOG_LEVEL", "info"),
 		Port:         getEnv("PORT", "8888"),
-		Environment:  getEnv("ENVIRONMENT", "sandbox"),
-		Transport:    getEnv("TRANSPORT", "stdio"),
+		Environment:    getEnv("ENVIRONMENT", "sandbox"),
+		Transport:      getEnv("TRANSPORT", "stdio"),
+		QRMasterKeyRaw: getEnv("QR_MASTER_KEY", ""),
+		MCPServerURL:   getEnv("MCP_SERVER_URL", ""),
+		QRLinkTTL:      getEnvInt("QR_LINK_TTL", 86400),
 	}
 
 	// Parse toolsets
@@ -65,6 +74,11 @@ func LoadConfig() (*Config, error) {
 	cfg.PaymentBaseURL = "https://payments.airpay.co.in"
 	cfg.PayoutBaseURL = "https://kraken.airpay.co.in:8000"
 	cfg.OffersBaseURL = "https://offers.airpay.co.in"
+
+	// Default MCP server URL for QR preview links
+	if cfg.MCPServerURL == "" {
+		cfg.MCPServerURL = "http://localhost:" + cfg.Port
+	}
 
 	return cfg, cfg.validate()
 }
@@ -112,4 +126,16 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	v := getEnv(key, "")
+	if v == "" {
+		return defaultValue
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return defaultValue
+	}
+	return n
 }
